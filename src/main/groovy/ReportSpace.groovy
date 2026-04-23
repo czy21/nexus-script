@@ -1,5 +1,4 @@
 import groovy.json.JsonOutput
-import org.slf4j.LoggerFactory
 
 import java.math.RoundingMode
 import java.nio.file.FileSystems
@@ -7,8 +6,6 @@ import java.nio.file.Path
 import java.nio.file.PathMatcher
 
 import static groovy.io.FileType.FILES
-
-def log = LoggerFactory.getLogger(this.class)
 
 REPOSITORY_WHITELIST = []
 
@@ -39,25 +36,20 @@ Map<String, BlobStatistics> blobStatCollection = [:].withDefault { 0 }
 class BlobStatistics {
     int totalRepoNameMissingCount = 0
     long totalBlobStoreBytes = 0
-    BigDecimal totalBlobStoreMB = 0
     BigDecimal totalBlobStoreGB = 0
     long totalReclaimableBytes = 0
-    BigDecimal totalReclaimableMB = 0
     BigDecimal totalReclaimableGB = 0
     Map<String, RepoStatistics> repositories = [:]
 }
 
 class RepoStatistics {
     long totalBytes = 0
-    BigDecimal totalMB = 0
     BigDecimal totalGB = 0
     long reclaimableBytes = 0
-    BigDecimal reclaimableMB = 0
     BigDecimal reclaimableGB = 0
 }
 
-def collectMetrics(final BlobStatistics blobstat, Set<String> unmapped,
-                   final Properties properties, final File propertiesFile) {
+def collectMetrics(final BlobStatistics blobstat, Set<String> unmapped, final Properties properties, final File propertiesFile) {
     def repo = properties.'@Bucket.repo-name'
     if (repo == null && properties.'@BlobStore.direct-path') {
         repo = 'SYSTEM:direct-path'
@@ -173,10 +165,6 @@ blobStoreDirectories.each { blobStore ->
     blobStatCollection.put(blobStore.value.getName(), blobStat)
 }
 
-def getMB(long value) {
-    return (value / 1024 / 1024).setScale(2, RoundingMode.HALF_UP)
-}
-
 def getGB(long value) {
     return (value / 1024 / 1024 / 1024).setScale(2, RoundingMode.HALF_UP)
 }
@@ -186,15 +174,11 @@ blobStatCollection.each() { blobStoreName, blobStat ->
     if (directPath != null) {
         log.info("Direct-Path size in blobstore {}: {} - reclaimable: {}", blobStoreName, directPath.totalBytes, directPath.reclaimableBytes)
     }
-    blobStat.totalBlobStoreMB = getMB(blobStat.totalBlobStoreBytes)
     blobStat.totalBlobStoreGB = getGB(blobStat.totalBlobStoreBytes)
-    blobStat.totalReclaimableMB = getMB(blobStat.totalReclaimableBytes)
     blobStat.totalReclaimableGB = getGB(blobStat.totalReclaimableBytes)
     blobStat.repositories = blobStat.repositories.toSorted { a, b -> b.value.totalBytes <=> a.value.totalBytes }
     blobStat.repositories.each() { k, v ->
-        blobStat.repositories."$k".totalMB = getMB(v.totalBytes)
         blobStat.repositories."$k".totalGB = getGB(v.totalBytes)
-        blobStat.repositories."$k".reclaimableMB = getMB(v.reclaimableBytes)
         blobStat.repositories."$k".reclaimableGB = getGB(v.reclaimableBytes)
     }
 }
